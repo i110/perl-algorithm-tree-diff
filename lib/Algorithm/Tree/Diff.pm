@@ -2,10 +2,34 @@ package Algorithm::Tree::Diff;
 use 5.008005;
 use strict;
 use warnings;
+use Carp;
+use Module::Load;
+use Module::Loaded;
 
 our $VERSION = "0.01";
 
+use Exporter qw(import);
+our @EXPORT_OK = qw(tree_diff);
 
+sub tree_diff {
+	my ($T1, $T2) = (shift, shift);
+	my %opts = ref($_[0]) ? %{$_[0]} : @_;
+	$opts{algo} ||= 'diffX';
+	
+	my $module = do {
+		if ($opts{algo} =~ /^\+(.+)$/) {
+			$1;
+		} else {
+			'Algorithm::Tree::Diff::' . $opts{algo};
+		}
+	};
+	unless (is_loaded($module)) {
+		eval { load $module; 1 } or croak 'Cannot load module: ' . $module;
+	}
+
+	no strict 'refs';
+	return *{"${module}::tree_diff"}{CODE}->($T1, $T2, \%opts);
+}
 
 1;
 __END__
