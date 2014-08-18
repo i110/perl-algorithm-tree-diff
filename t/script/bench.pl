@@ -8,7 +8,7 @@ use File::Slurp;
 use FindBin;
 use JSON::XS qw(decode_json);
 use Time::HiRes;
-use Algorithm::Tree::Diff qw(tree_diff);
+use Algorithm::Tree::Diff qw(diff_tree);
 use Getopt::Long qw(:config posix_default no_ignore_case gnu_compat);
 
 my $algo = 'diffX';
@@ -28,7 +28,7 @@ for my $file (@files) {
 	my $case = decode_json($json);
 
 	my $st = Time::HiRes::time();
-	my @script = tree_diff($case->{before}, $case->{after}, +{ algo => $algo });
+	my @script = diff_tree($case->{before}, $case->{after}, +{ algo => $algo });
 	my $et = Time::HiRes::time();
 	my $msec = ($et - $st) * 1000;
 

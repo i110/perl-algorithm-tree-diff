@@ -4,12 +4,12 @@ use warnings;
 use utf8;
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(tree_diff);
+our @EXPORT_OK = qw(diff_tree);
 
 use Algorithm::Tree::Diff::diffX::Node;
 use Algorithm::Tree::Diff::Util qw(escape_token);
 
-sub tree_diff {
+sub diff_tree {
 	my ($T1, $T2) = @_;
 
 	my ($mapping, $inverse) = (+{}, +{});

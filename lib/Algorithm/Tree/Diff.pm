@@ -9,9 +9,9 @@ use Module::Loaded;
 our $VERSION = "0.01";
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(tree_diff);
+our @EXPORT_OK = qw(diff_tree);
 
-sub tree_diff {
+sub diff_tree {
 	my ($T1, $T2) = (shift, shift);
 	my %opts = ref($_[0]) ? %{$_[0]} : @_;
 	$opts{algo} ||= 'diffX';
@@ -28,7 +28,7 @@ sub tree_diff {
 	}
 
 	no strict 'refs';
-	return *{"${module}::tree_diff"}{CODE}->($T1, $T2, \%opts);
+	return *{"${module}::diff_tree"}{CODE}->($T1, $T2, \%opts);
 }
 
 1;
