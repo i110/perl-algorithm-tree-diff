@@ -85,7 +85,7 @@ sub _diff_array {
 	}
 
 	for my $i (@iter) {
-		my $index_path = append_pointer_token($path, $i);
+		my $index_path = append_pointer_token($path, $i, 1);
 		if ($i < $T1_count && $i < $T2_count) {
 			my $sub_patches = _diff($T1->[$i], $T2->[$i], $index_path);
 			push(@patches, @$sub_patches);
