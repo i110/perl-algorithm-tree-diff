@@ -78,7 +78,9 @@ sub move_to {
 					my $sibling = $new_parent->{children}->[$i];
 					$sibling->key($sibling->{key} + 1);
 				}
-				splice(@{ $new_parent->{children} }, $key, 0, $self);
+				# splice(@{ $new_parent->{children} }, $key, 0, $self);
+my $position = $key < scalar(@{ $new_parent->{children} }) ? $key : scalar(@{ $new_parent->{children} });
+splice(@{ $new_parent->{children} }, $position, 0, $self);
 				$self->key($key);
 			} else {
 				# push into the last

@@ -73,6 +73,8 @@ sub _match_fragment {
 	my ($v, $w, $mapping, $inverse, $fragment_mapping) = @_;
 	return if defined($mapping->{$v->{id}});
 	return if defined($inverse->{$w->{id}});
+	# TODO: uncommentout
+	# return unless defined($v->{var}) && defined($w->{var});
 	if ($v->{equal_key} eq $w->{equal_key}) {
 		$fragment_mapping->{$v->{id}} = $w->{id};
 		my $i = 0;
@@ -150,39 +152,94 @@ sub _remove_all_descendants_mapping {
 
 }
 
+sub _generate_and_map_node {
+	my ($w, $mapping, $inverse, $t1_id_to_nodes, $offset) = @_;
+
+	my $var = $w->own_var;
+
+	my $new_node = Algorithm::Tree::Diff::diffX::Node->new(
+		var => $w->{var},
+		key => $w->{key},
+		parent => undef,
+	);
+
+	my $new_parent = $t1_id_to_nodes->{$inverse->{$w->{parent}->{id}}} or die 'assertion';
+	my $key = $w->{key};
+	if ($new_parent->is_array && $offset) {
+		$key -= $offset;
+	}
+	# my ($success, $replaced) = $new_node->move_to($new_parent, $w->{key});
+	my ($success, $replaced) = $new_node->move_to($new_parent, $key);
+
+	my $op = 'add';
+	if ($replaced) {
+		$op = 'replace';
+		_remove_all_descendants_mapping($replaced, $mapping, $inverse);
+	}
+
+	$mapping->{$new_node->{id}} = $w->{id};
+	$inverse->{$w->{id}} = $new_node->{id};
+	$t1_id_to_nodes->{$new_node->{id}} = $new_node;
+
+	my $child_offset = 0;
+	for my $child (@{ $w->{children} }) {
+		if (exists($inverse->{$child->{id}})) {
+			$child_offset++;
+		} else {
+			my (undef, $child_var) = _generate_and_map_node($child, $mapping, $inverse, $t1_id_to_nodes, $child_offset);
+			if ($w->is_array) {
+				push(@$var, $child_var);
+			} elsif ($w->is_hash) {
+				$var->{$child->{key}} = $child_var;
+			}
+		}
+	}
+
+	return ($op, $var);
+}
+
 sub _generate_script {
 	my ($r1, $r2, $mapping, $inverse, $t1_id_to_nodes, $t2_id_to_nodes) = @_;
+# use Test::More;
+# diag '################################################';
+# diag $r1->dump_node;
+# diag $r2->dump_node;
+# diag _dump_mapping($mapping, $t1_id_to_nodes, $t2_id_to_nodes);
 
 	my @script;
 
-	# insert and move
+	# add, replace and move
 	_bfs($r2, sub {
 		my $w = shift;
 		return unless $w->{parent};
 
 		# insert
 		unless (exists($inverse->{$w->{id}})) {
-			my $new_node = Algorithm::Tree::Diff::diffX::Node->new(
-				var => $w->{var},
-				key => $w->{key},
-				parent => undef,
-			);
 
-			my $new_parent = $t1_id_to_nodes->{$inverse->{$w->{parent}->{id}}} or die 'assertion';
-			my ($success, $replaced) = $new_node->move_to($new_parent, $w->{key});
+			# my $new_node = Algorithm::Tree::Diff::diffX::Node->new(
+			# 	var => $w->{var},
+			# 	key => $w->{key},
+			# 	parent => undef,
+			# );
 
-			my $op = 'add';
-			if ($replaced) {
-				$op = 'replace';
-				_remove_all_descendants_mapping($replaced, $mapping, $inverse);
-			}
+			# my $new_parent = $t1_id_to_nodes->{$inverse->{$w->{parent}->{id}}} or die 'assertion';
+			# my ($success, $replaced) = $new_node->move_to($new_parent, $w->{key});
 
-			$mapping->{$new_node->{id}} = $w->{id};
-			$inverse->{$w->{id}} = $new_node->{id};
-			$t1_id_to_nodes->{$new_node->{id}} = $new_node;
+			# my $op = 'add';
+			# if ($replaced) {
+			# 	$op = 'replace';
+			# 	_remove_all_descendants_mapping($replaced, $mapping, $inverse);
+			# }
 
-			# TODO: switch own_var => var using replace
-			push(@script, +{ op => $op, path => $w->path(1), value => $w->own_var });
+
+			# $mapping->{$new_node->{id}} = $w->{id};
+			# $inverse->{$w->{id}} = $new_node->{id};
+			# $t1_id_to_nodes->{$new_node->{id}} = $new_node;
+
+# my $var = $w->own_var;
+			my ($op, $var) = _generate_and_map_node($w, $mapping, $inverse, $t1_id_to_nodes);
+
+			push(@script, +{ op => $op, path => $w->path(1), value => $var });
 			return;
 		}
 
@@ -190,7 +247,7 @@ sub _generate_script {
 		my $v = $t1_id_to_nodes->{$inverse->{$w->{id}}};
 		return unless $v->has_ancestor($r1);
 		if ($v->{parent} && $w->{parent}) {
-			if (! $mapping->{$v->{parent}->{id}} || $mapping->{$v->{parent}->{id}} ne $w->{parent}->{id}) {
+			if ((! $mapping->{$v->{parent}->{id}}) || ($mapping->{$v->{parent}->{id}} ne $w->{parent}->{id})) {
 				# parent is not matching
 
 				my $new_parent = $t1_id_to_nodes->{$inverse->{$w->{parent}->{id}}}
@@ -217,7 +274,7 @@ sub _generate_script {
 
 	});
 
-	# delete
+	# remove
 	_bfs($r1, sub {
 		my ($v, $stop) = @_;
 		unless (exists($mapping->{$v->{id}})) {
